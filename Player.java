@@ -8,7 +8,7 @@ public class Player implements LeveledObject
 {
 	private String playerName;
 	private int experience;
-	private int level;
+	private int level=1;
 	private ArrayList<Potion> potionsLeft;
 	private ArrayList<Pokeball> pokeballsLeft;
 	private EvolvablePokemon currenPokemon;
@@ -17,21 +17,35 @@ public class Player implements LeveledObject
 	private DB db=new DB();
 	private static final int maxLevel=3;
 	private static final int XpToIncrement=10;
- public Player()
- {
-	 this.playerName = "";
-		this.experience = 0;
-		this.level = 1;
-		this.pokemonsLeft=new ArrayList<EvolvablePokemon>();
-		this.pokeballsLeft=new ArrayList<Pokeball>();
-	this.potionsLeft=new ArrayList<Potion>();
-		this.battlesWon = 0;
-	 
- }
+	private int rewards;
+ public String getPlayerName() {
+		return playerName;
+	}
+	public void setPlayerName(String playerName) {
+		this.playerName = playerName;
+	}
+	public int getRewards() {
+		return rewards;
+	}
+	public void setRewards(int rewards) {
+		this.rewards = rewards;
+	}
+	public Player()
+	 {
+		    this.playerName = "";
+			this.experience = 0;
+			this.level = 1;
+			this.pokemonsLeft=new ArrayList<EvolvablePokemon>();
+			this.pokeballsLeft=new ArrayList<Pokeball>();
+		    this.potionsLeft=new ArrayList<Potion>();
+			this.battlesWon = 0;
+			this.rewards=100;
+		 
+	 }
 	public Player(String userName, int experience, int level,
 			ArrayList<Potion> potionsLeft, ArrayList<Pokeball> pokeballsLeft,
 			EvolvablePokemon currenPokemon, ArrayList<EvolvablePokemon> pokemonsLeft,
-			int battlesWon) {
+			int battlesWon,int rewards) {
 		super();
 		this.playerName = userName;
 		this.experience = experience;
@@ -41,6 +55,7 @@ public class Player implements LeveledObject
 		this.currenPokemon = currenPokemon;
 		this.pokemonsLeft = pokemonsLeft;
 		this.battlesWon = battlesWon;
+		this.rewards=rewards;
 	}
 	public String getUserName() {
 		return playerName;
@@ -89,6 +104,7 @@ public class Player implements LeveledObject
 	}
 	public void setBattlesWon(int battlesWon) {
 		this.battlesWon = battlesWon;
+		System.out.printf("\n%s Battle's won:%d",this.playerName,this.battlesWon);
 	}
    public void listPokemonsLeft()
    {
@@ -101,35 +117,46 @@ public class Player implements LeveledObject
    }
 
 
-public void createPokeGang(Player p,String name)
+public Player createPlayer(Player p,String name) throws SQLException
 {
-	Scanner input=new Scanner(System.in);
-	EvolvablePokemon poke=new EvolvablePokemon(); 
 	if(!db.isExistingPlayer(name))
 	{
 		this.setUserName(name);
 		this.pokeballsLeft.add(new Pokeball());
-	    try
-	    {
-		 for (int j=1;j<=3;j++)
-		 {
-			 System.out.printf("Please choose pokemon %d:\n",j);
-			 db.listPokemons();
-			 int choice=input.nextInt();
-		 	 poke=db.getPokemonDetails(choice);
-			 p.pokemonsLeft.add(new EvolvablePokemon());
-			 p.pokemonsLeft.set(j-1, poke);	
-		 }
-		  }
-	      catch (SQLException e) {
-			//e.printStackTrace();
-		  System.out.println("Oops!! Something went wrong!!");
-	     }
+		this.potionsLeft.add(new Potion());
+	    createPokeGang(p);
      }
 	else
-	 p=db.getPlayerDetails(name);
-
+	{
+		System.out.println("Welcome back "+name+"!!!");
+		p=db.getPlayerDetails(name);
+		if(p.getPokemonsLeft().size()<1)
+			createPokeGang(p);
+	}
+	return p;
  }
+private void createPokeGang(Player p)
+{
+	EvolvablePokemon poke=new EvolvablePokemon(); 
+	Scanner input=new Scanner(System.in);
+	try
+	{
+	 for (int j=1;j<=3;j++)
+	 {
+		 System.out.printf("Please choose pokemon %d:\n",j);
+		 db.listPokemons();
+		 int choice=input.nextInt();
+	 	 poke=db.getPokemonDetails(choice);
+		 p.pokemonsLeft.add(new EvolvablePokemon());
+		 p.pokemonsLeft.set(j-1, poke);	
+	 }
+	 db.insertOrUpdatePlayer(p);
+	 }
+	  catch (SQLException e) {
+		e.printStackTrace();
+	  //System.out.println("Oops!! Something went wrong!!");
+	 }
+}
 
   public void gainExperience(int amount)
   {
@@ -152,8 +179,8 @@ public void createPokeGang(Player p,String name)
 	
 	private void getLevelUPreward(int level)
 	{
-		// gain a pokeball or a potion as reward
-		System.out.println("\nYou gained new items as reward for Level "+getLevel());
+		this.setRewards(this.rewards+10);
+		System.out.printf("\nYou gained 10 reward points for reaching the level %d\n Your total reward points:%d ",getLevel(),this.rewards);
 		if(this.getLevel()==maxLevel)
 			evolveUser(this);
 	}
@@ -161,8 +188,12 @@ public void createPokeGang(Player p,String name)
 	{
 		System.out.printf("\n%s has reached the maximum level\nEvolving the pokegang..",this.getUserName());
 		for(int i=0;i<this.pokemonsLeft.size();i++)
+		{
 			if(p.pokemonsLeft.get(i).pokemonAfterEvolution!=null)
 			  p.pokemonsLeft.get(i).evolve();
+			else
+				System.out.println(i);
+		}
 		System.out.println("Here comes the new Pokegang");
 			p.listPokemonsLeft();	
 	}
@@ -177,20 +208,19 @@ public void createPokeGang(Player p,String name)
 			for(int i=0;i< this.pokeballsLeft.size();i++)
 			{
 				Pokeball pball=this.pokeballsLeft.get(i);
-				System.out.printf("%d\t%s\t%d",i+1,pball.getBallType(),pball.getPokeballCount());
-			    i++;
+				System.out.printf("%d\t%s\t%d\n",i+1,pball.getBallType(),pball.getPokeballCount());
+			  
 		    }
 			System.out.println("\nPlease choose a ball type");
 			choice=input.nextInt();
 			Pokeball tempBall=this.pokeballsLeft.get(choice-1);
-			System.out.printf("Throwing ballType %s to capture pokemon",tempBall.getBallType());
-			int ballProb=(int)(Math.random()*10);
-			System.out.println(ballProb);
+			System.out.printf("Throwing ballType %s to capture pokemon...\n",tempBall.getBallType());
+			int ballProb=(int)(Math.random()*10);			
 			if (ballProb<=tempBall.getProbability()*10)
 			{
-				System.out.println("Congratulations! you have captured the pokemon");
 				EvolvablePokemon tempPoke=new EvolvablePokemon();
                 tempPoke=db.getPokemonDetails(ballProb+1);
+                System.out.println("Congratulations! you have captured the pokemon");
                 if(this.pokemonsLeft.size()<7)
                 {
                 	this.pokemonsLeft.add(new EvolvablePokemon());
@@ -230,23 +260,132 @@ public void createPokeGang(Player p,String name)
 	}
 	public void chooseFighterPokemon()
 	{
+		if(this.getPokemonsLeft().size()<1)
+			createPokeGang(this);
 		int choice;
 		Scanner input=new Scanner(System.in);
-		System.out.printf("\nChoose your pokemon for the player %s:",this.getUserName());
+		System.out.printf("\n%s Please choose your pokemon for the battle:",this.getUserName());
 	 	this.listPokemonsLeft();
 	 	choice=input.nextInt();
 	 	this.setCurrenPokemon(this.getPokemonsLeft().get(choice-1));
 	 	this.getCurrenPokemon().viewPokemon();
 	}
-	public void visitPokeStop()
+	public void visitPokeStop() throws SQLException
 	{
+		int choice;
+		Scanner input=new Scanner(System.in);
+		System.out.println("Welcome to the Pokestop!!!\nPlease choose from the following reward items\n1.Potions\t2.Pokeballs");
+		choice=input.nextInt();
+		if(choice==1)
+		{
+			db.listPotions();
+			choice=input.nextInt();
+			getPotionReward(choice);
+		}
 		
+		else
+		{
+			db.listPokeballs();
+			choice=input.nextInt();
+			getPokeballReward(choice);
+		}
 	}
+	private void getPokeballReward(int choice)throws SQLException
+	{
+		boolean pokeballFound=false;
+		Pokeball tempBall=db.getPokeballDetails(choice);
+		int convertedProb=(int)tempBall.getProbability()*10;
+		if(convertedProb<this.rewards)
+		{		
+			this.rewards=this.rewards-convertedProb;
+			if(this.getPokeballsLeft().size()>0)
+			{
+				pokeballFound=false;
+				for(int i=0;i<this.getPokeballsLeft().size();i++)
+				{
+					if(this.getPokeballsLeft().get(i).getBallType().toString().equals(tempBall.getBallType()))
+					{
+						pokeballFound=true;
+						this.getPokeballsLeft().get(i).setPokeballCount(this.getPokeballsLeft().get(i).getPokeballCount()+1);
+					}
+				}
+			}
+			if(!pokeballFound)
+			{
+				this.pokeballsLeft.add(new Pokeball());
+				this.pokeballsLeft.set(this.pokeballsLeft.size()>0?this.pokeballsLeft.size()-1:this.pokeballsLeft.size(),tempBall);
+			}
+			System.out.println("You acquired a new ball!!\nYour new PokeBall pack details below\nType\tcount\n----------------");
+			for(int i=0;i<this.pokeballsLeft.size();i++)
+			{
+				Pokeball pl=this.pokeballsLeft.get(i);
+				System.out.printf("%s\t\t%d\n",pl.getBallType(),pl.getPokeballCount());
+		    }
+		}
+		else
+			System.out.println("Sorry you do not have enough rewards! Your current reward points :"+this.getRewards());		
+	}
+	private void getPotionReward(int choice)throws SQLException
+	{
+		boolean potionFound=false;
+		Potion tempPotion=db.getPotionDetails(choice);
+		if(tempPotion.getHealingPower()<this.rewards)
+		{				
+			this.rewards=this.rewards-tempPotion.getHealingPower();
+			if(this.getPotionsLeft().size()>0)
+			{
+				for(int i=0;i<this.getPotionsLeft().size();i++)
+				{
+					
+					if(this.getPotionsLeft().get(i).getPotionType().toString().equals(tempPotion.getPotionType()))
+					{
+						potionFound=true;
+						this.getPotionsLeft().get(i).setPotionCount(this.getPotionsLeft().get(i).getPotionCount()+1);
+					}
+				}
+			}
+			if(!potionFound)
+			{
+				this.potionsLeft.add(new Potion());
+				this.potionsLeft.set(this.potionsLeft.size()-1,tempPotion);
+			}
+			System.out.println("You acquired a new potion!!!\nYour new Potion pack details below\npotionType\tcount\n------------------------");
+			for(int i=0;i<this.potionsLeft.size();i++)
+			{
+				Potion pn=this.potionsLeft.get(i);
+				System.out.printf("%s\t\t%d\n",pn.getPotionType(),pn.getPotionCount());
+		    }
+		}
+		else
+			System.out.println("Sorry you do not have enough rewards! Your current reward points :"+this.getRewards());		
+	}
+	
 	public void applyPotion()
 	{
-		//Determine which potion to use
-		//increase hp
-		//decrease potion count
-		
+		Scanner input=new Scanner(System.in);
+		int choices=0;
+		if(this.potionsLeft.size()>0)
+		{
+			System.out.println("Option PotionType\tcount");
+			for(int i=0;i< this.potionsLeft.size();i++)
+			{
+				Potion potioncount=this.potionsLeft.get(i);
+				System.out.printf("%d\t%s\t%d",i+1,potioncount.getPotionType(),potioncount.getPotionCount());
+			
+		    }
+			System.out.println("\nPlease choose Potion type");
+			choices=input.nextInt();
+			Potion tempPotion=this.potionsLeft.get(choices-1);
+			System.out.printf("Applying PotionType %s to  pokemon",tempPotion.getPotionType());
+			this.currenPokemon.setHitPoint(this.currenPokemon.getHitPoint() + tempPotion.getHealingPower()); 
+		 	if(tempPotion.getPotionCount()>1)
+				this.potionsLeft.get(choices-1).setPotionCount(tempPotion.getPotionCount()-1);
+			else
+				this.potionsLeft.remove(choices-1);			
+		}
+	 }
+	public void viewPlayer()
+	{
+		System.out.printf("Name:%s\nRegularball:%d\nGreatball:%d\n",this.playerName,this.pokeballsLeft.get(0).pokeballCount,this.pokeballsLeft.get(1).pokeballCount);
 	}
 }
